@@ -1,2 +1,2 @@
 # Promise
-a Promise implement in lua
+a Promise implemention for lua
