@@ -17,15 +17,20 @@ function test1()
 	local p1 = Promise.resolve(1)
 	local p2 = p1:andThen(function (s)
 		print(s)
-		return Promise.resolve(2)
+		return Promise.reject(2)
 	end)
 	local p3 = p2:andThen(function (s)
 		print(s)
 		return Promise.resolve(3)
+	end,function (err)
+		print("on reject 1")
+		return err
 	end)
 
 	local p4 = p3:andThen(function (s)
 		print(s)
+	end,function (err)
+		print("on reject 2")
 	end)
 end
 
@@ -71,7 +76,6 @@ function test3()
 
 	r1.resolve(2)
 	r2.resolve(3)
-	--print("r2.resolve.end")
 	--r3.resolve(4)
 end
 
@@ -135,6 +139,29 @@ function test6()
 	end)
 end
 
+function test7()
+
+	local p1 = Promise.resolve(1)
+	local r1 = {}
+	local r2 = {}	
+	local r3 = {}
+	local p2 = p1:andThen(function (s)
+		print("p1",s)
+		return getPendingResolve(r1)
+	end)
+
+
+	local p3 = p2:andThen(function (s)
+		print("p2",s)
+		return s
+	end)
+	r1.resolve(getPendingResolve(r2))
+	r2.resolve(Promise.new(function(resolve,reject)
+		print("here")
+		resolve(10)
+	end))
+end
+
 
 
 print("-----------test1-------------------")
@@ -149,7 +176,8 @@ print("-----------test5-------------------")
 test5()
 print("-----------test6-------------------")
 test6()
-
+print("-----------test7-------------------")
+test7()
 
 
 

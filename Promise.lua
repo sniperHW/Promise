@@ -6,10 +6,6 @@ promise.__index = promise
 local PENDING  = 1
 local RESOLVED = 2
 local REJECTED = 3
-
-local TABLE = 1
-local FUNC  = 2
-
 local resolve
 local reject
 
@@ -17,14 +13,42 @@ local function isPromise(value)
 	return getmetatable(value) == promise
 end
 
-local function setState(promise,state,value)
+local function isFunction(f)
+	if type(f) == 'table' then
+		local mt = getmetatable(f)
+		return mt ~= nil and type(mt.__call) == 'function'
+	end
+	return type(f) == 'function'
+end
+
+local function fire(promise,state,value)
 	if promise.state == PENDING then
-		promise.state = state
 		promise.value = value
-		if state == REJECTED and promise.failure then
-			promise.value = promise.failure(value)
-		elseif state == RESOLVED and promise.success then
-			promise.value = promise.success(value)
+		local ok = true
+
+		if value == promise then
+		   ok = false
+		   promise.value = "TypeError"
+		elseif isPromise(value) then
+			if value.state == PENDING then
+				table.insert(value.queue,promise)
+				return	
+			else
+				state = value.state
+				promise.value = value.value
+			end
+		else 
+			if state == REJECTED and promise.failure then
+				ok,promise.value = pcall(promise.failure,value)
+			elseif state == RESOLVED and promise.success then
+				ok,promise.value = pcall(promise.success,value)
+			end
+		end
+
+		if not ok then
+			promise.state = REJECTED
+		else
+			promise.state = state
 		end
 
 		if isPromise(promise.value) and promise.value.state == PENDING then
@@ -33,9 +57,10 @@ local function setState(promise,state,value)
 		end
 
 		if promise.parent then
-			for k,v in ipairs(promise.parent.queue) do
-				table.insert(promise.queue,v)
+			for _ , v in ipairs(promise.queue) do
+				table.insert(promise.parent.queue,v)
 			end
+			promise.queue = promise.parent.queue
 			promise.parent.queue = {}
 		end
 
@@ -57,13 +82,13 @@ end
 
 resolve = function (promise) 
 	return function (value)
-		setState(promise,RESOLVED,value)
+		fire(promise,RESOLVED,value)
 	end
 end
 
 reject = function (promise)
 	return function (err)
-		setState(promise,REJECTED,err)
+		fire(promise,REJECTED,err)
 	end
 end
 
@@ -72,61 +97,27 @@ local function newPromise(option,optionType)
 	p.state = PENDING
 	p.queue = {}
 	p = setmetatable(p, promise)
-	if optionType == FUNC then
+	if optionType == "function" then
 		local ok, err = pcall(option, resolve(p), reject(p))
 		if not ok then
 			reject(p)(err)
 		end
-	elseif optionType == TABLE then
+	elseif optionType == "table" then
 		p.success = option.success
 		p.failure  = option.failure
 	end
 	return p
 end
 
---instance method
-
-function promise:andThen(success,failure)
-	local next = newPromise({success=success,failure=failure},TABLE)
-
-	local p
-
-	if isPromise(self.value) then
-		p = self.value
-	else
-		p = self
-	end
-	
-	if p.state == PENDING then
-		table.insert(p.queue,next)
-	else
-		if p.state == RESOLVED then
-			resolve(next)(p.value)
-		else
-			reject(next)(p.value)
-		end
-	end
-	
-	return next
-end
-
-function promise:catch(failure)
-	return self:andThen(nil,failure)
-end
-
-function promise:final(final)
-	return self:andThen(final,final)
-end
-
 function M.new(func)
 	if type(func) ~= 'function' then
 		return nil
 	end
-	return newPromise(func,FUNC)
+	return newPromise(func,"function")
 end
 
 function M.all(args)
-	local d = newPromise({},TABLE)
+	local d = newPromise({},"table")
 	if #args == 0 then
 		return resolve(d)({})
 	end
@@ -156,7 +147,7 @@ end
 
 
 function M.race(args)
-	local d = newPromise({},TABLE)
+	local d = newPromise({},"table")
 	for _, v in ipairs(args) do
 		v:andThen(function(res)
 			resolve(d)(res)
@@ -178,6 +169,44 @@ function M.reject(err)
 	return M.new(function (_,reject)
 		reject(err)
 	end)	
+end
+
+--instance method
+
+function promise:andThen(success,failure)
+
+	success = isFunction(success) and success or nil
+	failure = isFunction(failure) and failure or nil
+
+	local next = newPromise({success=success,failure=failure},"table")
+
+	local p
+
+	if isPromise(self.value) then
+		p = self.value
+	else
+		p = self
+	end
+	
+	if p.state == PENDING then
+		table.insert(p.queue,next)
+	else
+		if p.state == RESOLVED then
+			resolve(next)(p.value)
+		else
+			reject(next)(p.value)
+		end
+	end
+	
+	return next
+end
+
+function promise:catch(failure)
+	return self:andThen(nil,failure)
+end
+
+function promise:final(final)
+	return self:andThen(final,final)
 end
 
 return M
