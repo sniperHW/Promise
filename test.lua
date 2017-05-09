@@ -162,6 +162,34 @@ function test7()
 	end))
 end
 
+function test8()
+
+	Promise.reject("error"):andThen(function (s)
+		print("1")
+	end,function (err)
+		print("on failed:" .. err)
+	end):andThen(function (s)
+		print("on success")
+	end)
+
+
+end
+
+function test9()
+	local r = {}
+	getPendingReject(r):andThen(function (s)
+		print("1")
+	end,function (err)
+		print("on failed:" .. err)
+	end):andThen(function (s)
+		print("on success")
+	end)
+
+	r.reject("error")
+
+
+end
+
 
 
 print("-----------test1-------------------")
@@ -178,6 +206,8 @@ print("-----------test6-------------------")
 test6()
 print("-----------test7-------------------")
 test7()
-
-
+print("-----------test8-------------------")
+test8()
+print("-----------test9-------------------")
+test9()
 
