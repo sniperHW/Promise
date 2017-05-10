@@ -168,8 +168,11 @@ function test8()
 		print("1")
 	end,function (err)
 		print("on failed:" .. err)
+		return Promise.reject("reject2")		
 	end):andThen(function (s)
 		print("on success")
+	end,function (err)
+		print(err)
 	end)
 
 
@@ -178,18 +181,20 @@ end
 function test9()
 	local r = {}
 	getPendingReject(r):andThen(function (s)
-		print("1")
+		print("success")
 	end,function (err)
 		print("on failed:" .. err)
+		return Promise.reject("reject2")
 	end):andThen(function (s)
 		print("on success")
+	end,function (err)
+		print(err)
 	end)
 
 	r.reject("error")
 
 
 end
-
 
 
 print("-----------test1-------------------")
