@@ -87,7 +87,10 @@ function test4()
 	local r3 = {}
 	local p2 = p1:andThen(function (s)
 		print("p1",s)
-		return getPendingResolve(r1)
+		return getPendingResolve(r1):andThen(function (s)
+				print("nest andThen")
+				return s
+			end)
 	end)
 	local p3 = p2:andThen(function (s)
 		print("p2",s)
