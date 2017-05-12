@@ -199,6 +199,21 @@ function test9()
 
 end
 
+function test10()
+	local p = {}
+	table.insert(p,Promise.resolve("resolve1"))
+	table.insert(p,Promise.resolve("resolve2"))
+	table.insert(p,Promise.reject("reject3"))
+
+	Promise.all(p):andThen(function (r)
+		print(r[1],r[2],r[3])
+	end,function (r)
+		print(r[1].state,r[2].state,r[3].state)
+		print(r[1].value,r[2].value,r[3].value)		
+	end)
+
+end
+
 
 print("-----------test1-------------------")
 test1()
@@ -218,4 +233,6 @@ print("-----------test8-------------------")
 test8()
 print("-----------test9-------------------")
 test9()
+print("-----------test10-------------------")
+test10()
 
