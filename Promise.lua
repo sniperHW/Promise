@@ -39,9 +39,9 @@ local function fire(promise,state,value)
 			end
 		else 
 			if state == REJECTED and promise.failure then
-				ok,promise.value = pcall(promise.failure,value)
+				ok,promise.value = xpcall(promise.failure,function (err) promise.value = err end,value)
 			elseif state == RESOLVED and promise.success then
-				ok,promise.value = pcall(promise.success,value)
+				ok,promise.value = xpcall(promise.success,function (err) promise.value = err end,value)
 			end
 		end
 
